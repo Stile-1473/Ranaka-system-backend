@@ -50,7 +50,7 @@ public class SecurityConfig {
                                 // - login / register
                                 // - WebSocket handshake endpoint
                                 // - /error so Spring can render framework errors correctly
-                                .requestMatchers("/api/auth/**", "/api/v1/auth/**", "/ws/**", "/error").permitAll()
+                                .requestMatchers("/api/auth/**", "/api/v1/auth/**", "/api/v1/health", "/ws/**", "/error").permitAll()
                                 .anyRequest().authenticated()
                 )
 

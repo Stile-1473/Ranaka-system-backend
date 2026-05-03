@@ -18,6 +18,7 @@ import Ranaka.ranaka.user.entity.User;
 import Ranaka.ranaka.user.repository.UserRepository;
 import Ranaka.ranaka.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,6 +29,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
@@ -151,16 +153,20 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void logAuditAction(User user, AuditAction action, String description) {
-        auditLogRepository.save(AuditLog.builder()
-                .user(user)
-                .action(action)
-                .description(description)
-                .entityId(user.getId())
-                .entityType("User")
-                .newValue(user.getEmail())
-                .ipAddress("system")
-                .userAgent("system")
-                .createdAt(LocalDateTime.now())
-                .build());
+        try {
+            auditLogRepository.save(AuditLog.builder()
+                    .user(user)
+                    .action(action)
+                    .description(description)
+                    .entityId(user.getId())
+                    .entityType("User")
+                    .newValue(user.getEmail())
+                    .ipAddress("system")
+                    .userAgent("system")
+                    .createdAt(LocalDateTime.now())
+                    .build());
+        } catch (Exception ex) {
+            log.error("Failed to write audit log for user {} and action {}", user.getEmail(), action, ex);
+        }
     }
 }

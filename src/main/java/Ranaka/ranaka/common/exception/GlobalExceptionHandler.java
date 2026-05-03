@@ -1,6 +1,7 @@
 package Ranaka.ranaka.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
@@ -92,6 +94,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
         // Final safety net so unexpected failures still return a predictable JSON shape.
+        log.error("Unhandled exception while processing {} {}", request.getMethod(), request.getRequestURI(), ex);
         ApiErrorResponse response = ApiErrorResponse.of(
                 "INTERNAL_SERVER_ERROR",
                 "An unexpected error occurred",
