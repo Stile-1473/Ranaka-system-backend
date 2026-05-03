@@ -69,16 +69,22 @@ public class JwtService {
     }
 
     private byte[] resolveSecretBytes() {
+        String normalizedSecret = jwtSecret == null ? "" : jwtSecret.trim();
+        if ((normalizedSecret.startsWith("\"") && normalizedSecret.endsWith("\""))
+                || (normalizedSecret.startsWith("'") && normalizedSecret.endsWith("'"))) {
+            normalizedSecret = normalizedSecret.substring(1, normalizedSecret.length() - 1).trim();
+        }
+
         try {
-            byte[] decoded = Decoders.BASE64.decode(jwtSecret);
+            byte[] decoded = Decoders.BASE64.decode(normalizedSecret);
             if (decoded.length >= 32) {
                 return decoded;
             }
-        } catch (IllegalArgumentException ignored) {
+        } catch (RuntimeException ignored) {
             // Plain text secrets are supported below for deployment platforms that store raw env values.
         }
 
-        return sha256(jwtSecret.getBytes(StandardCharsets.UTF_8));
+        return sha256(normalizedSecret.getBytes(StandardCharsets.UTF_8));
     }
 
     private byte[] sha256(byte[] value) {
