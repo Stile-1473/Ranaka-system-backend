@@ -1,0 +1,14 @@
+package Ranaka.ranaka.common.enums;
+
+public enum NotificationType {
+    REQUEST_SUBMITTED,
+    REQUEST_MOVED_TO_NEXT_STAGE,
+    REQUEST_RETURNED,
+    REQUEST_REJECTED,
+    REQUEST_APPROVED,
+    REQUEST_AUTHORIZED,
+    REQUEST_COMPLETED,
+    REQUEST_OVERDUE,
+    REMINDER_TRIGGERED
+}
+

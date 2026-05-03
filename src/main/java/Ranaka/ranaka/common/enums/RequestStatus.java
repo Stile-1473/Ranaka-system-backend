@@ -1,0 +1,17 @@
+package Ranaka.ranaka.common.enums;
+
+public enum RequestStatus {
+    DRAFT,
+    SUBMITTED,
+    PENDING_ADMIN_RECOMMENDATION,
+    RECOMMENDED,
+    PENDING_GM_APPROVAL,
+    APPROVED_BY_GM,
+    PENDING_CEO_AUTHORIZATION,
+    AUTHORIZED,
+    RETURNED_FOR_CORRECTION,
+    REJECTED,
+    OVERDUE,
+    COMPLETED
+}
+
