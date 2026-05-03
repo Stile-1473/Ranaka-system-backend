@@ -8,6 +8,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -61,10 +64,29 @@ public class JwtService {
     }
 
     private SecretKey getSigningKey(){
-        // The secret must be base64-encoded and long enough for the HMAC signing algorithm
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        byte[] keyBytes = resolveSecretBytes();
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    private byte[] resolveSecretBytes() {
+        try {
+            byte[] decoded = Decoders.BASE64.decode(jwtSecret);
+            if (decoded.length >= 32) {
+                return decoded;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Plain text secrets are supported below for deployment platforms that store raw env values.
+        }
+
+        return sha256(jwtSecret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private byte[] sha256(byte[] value) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(value);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm is not available", e);
+        }
+    }
 
 }
