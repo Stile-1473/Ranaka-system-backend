@@ -24,6 +24,11 @@ public interface UserRepository extends JpaRepository<User,Long> {
     boolean existsByEmail(String email);
 
     /**
+     * Find a user by phone number so bootstrap/admin flows can avoid unique collisions.
+     */
+    Optional<User> findByPhoneNumber(String phoneNumber);
+
+    /**
      * Find all users with a specific role
      * Used for sending notifications to users by their role (ADMIN, GM, CEO, REQUESTER)
      *

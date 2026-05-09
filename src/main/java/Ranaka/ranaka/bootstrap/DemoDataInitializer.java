@@ -4,6 +4,7 @@ import Ranaka.ranaka.common.enums.ApprovalAction;
 import Ranaka.ranaka.common.enums.RequestPriority;
 import Ranaka.ranaka.common.enums.RequestStatus;
 import Ranaka.ranaka.common.enums.WorkflowStage;
+import Ranaka.ranaka.audit.repository.AuditLogRepository;
 import Ranaka.ranaka.department.entity.Department;
 import Ranaka.ranaka.department.repository.DepartmentRepository;
 import Ranaka.ranaka.notification.repository.NotificationRepository;
@@ -55,6 +56,7 @@ public class DemoDataInitializer implements CommandLineRunner {
     private final RequestCommentRepository requestCommentRepository;
     private final RequestAttachmentRepository requestAttachmentRepository;
     private final NotificationRepository notificationRepository;
+    private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.bootstrap.mode:demo}")
@@ -110,13 +112,15 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private void resetWorkflowData() {
-        log.warn("Reset bootstrap flag is enabled. Clearing workflow demo/test data before seeding.");
+        log.warn("Reset bootstrap flag is enabled. Clearing workflow data, audit logs, and users before seeding.");
 
         notificationRepository.deleteAll();
         requestAttachmentRepository.deleteAll();
         requestCommentRepository.deleteAll();
         requestApprovalRepository.deleteAll();
         procurementRequestRepository.deleteAll();
+        auditLogRepository.deleteAll();
+        userRepository.deleteAll();
     }
 
     private Map<String, Department> seedDepartments() {
@@ -243,23 +247,47 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private User findOrCreateUser(String firstName, String lastName, String email, String phoneNumber, Role role) {
-        return userRepository.findByEmail(email)
-                .map(existing -> {
-                    existing.setFirstName(firstName);
-                    existing.setLastName(lastName);
-                    existing.setPhoneNumber(phoneNumber);
-                    existing.setRole(role);
-                    existing.setActive(true);
-                    return userRepository.save(existing);
-                })
-                .orElseGet(() -> userRepository.save(buildUser(
-                        firstName,
-                        lastName,
-                        email,
-                        phoneNumber,
-                        role,
-                        passwordEncoder.encode(defaultPassword)
-                )));
+        User emailMatch = userRepository.findByEmail(email).orElse(null);
+        User phoneMatch = userRepository.findByPhoneNumber(phoneNumber).orElse(null);
+
+        if (emailMatch != null && phoneMatch != null && !emailMatch.getId().equals(phoneMatch.getId())) {
+            log.warn(
+                    "Bootstrap user conflict for email '{}' and phone '{}'. Reusing email-matched user id={} and leaving existing phone owner id={} untouched.",
+                    email,
+                    phoneNumber,
+                    emailMatch.getId(),
+                    phoneMatch.getId()
+            );
+
+            emailMatch.setFirstName(firstName);
+            emailMatch.setLastName(lastName);
+            emailMatch.setRole(role);
+            emailMatch.setActive(true);
+            emailMatch.setPassword(passwordEncoder.encode(defaultPassword));
+            return userRepository.save(emailMatch);
+        }
+
+        User existing = emailMatch != null ? emailMatch : phoneMatch;
+
+        if (existing != null) {
+            existing.setFirstName(firstName);
+            existing.setLastName(lastName);
+            existing.setEmail(email);
+            existing.setPhoneNumber(phoneNumber);
+            existing.setRole(role);
+            existing.setActive(true);
+            existing.setPassword(passwordEncoder.encode(defaultPassword));
+            return userRepository.save(existing);
+        }
+
+        return userRepository.save(buildUser(
+                firstName,
+                lastName,
+                email,
+                phoneNumber,
+                role,
+                passwordEncoder.encode(defaultPassword)
+        ));
     }
 
     private void seedRequests(Map<String, Department> departments, Map<String, User> users) {
