@@ -6,6 +6,7 @@ import Ranaka.ranaka.common.enums.RequestStatus;
 import Ranaka.ranaka.common.enums.WorkflowStage;
 import Ranaka.ranaka.department.entity.Department;
 import Ranaka.ranaka.department.repository.DepartmentRepository;
+import Ranaka.ranaka.notification.repository.NotificationRepository;
 import Ranaka.ranaka.request.entity.ProcurementRequest;
 import Ranaka.ranaka.request.entity.RequestApproval;
 import Ranaka.ranaka.request.entity.RequestAttachment;
@@ -18,6 +19,8 @@ import Ranaka.ranaka.user.domain.Role;
 import Ranaka.ranaka.user.entity.User;
 import Ranaka.ranaka.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -27,10 +30,23 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class DemoDataInitializer implements CommandLineRunner {
+
+    private static final Set<String> MINIMAL_ACTIVE_EMAILS = Set.of(
+            "stilesmvura@gmail.com",
+            "admin@ranaka.org",
+            "gm@ranaka.org",
+            "ceo@ranaka.org",
+            "requester1@ranaka.org",
+            "requester2@ranaka.org",
+            "requester3@ranaka.org"
+    );
 
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
@@ -38,23 +54,72 @@ public class DemoDataInitializer implements CommandLineRunner {
     private final RequestApprovalRepository requestApprovalRepository;
     private final RequestCommentRepository requestCommentRepository;
     private final RequestAttachmentRepository requestAttachmentRepository;
+    private final NotificationRepository notificationRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.bootstrap.mode:demo}")
+    private String bootstrapMode;
+
+    @Value("${app.bootstrap.reset:false}")
+    private boolean resetBootstrapData;
+
+    @Value("${app.bootstrap.default-password:Password@123}")
+    private String defaultPassword;
 
     @Override
     @Transactional
     public void run(String... args) {
-        // Seed master data first so demo requests can point at real departments and real users.
-        Map<String, Department> departments = seedDepartments();
-        Map<String, User> users = seedUsers();
+        String mode = normalizeBootstrapMode(bootstrapMode);
 
-        // Only add workflow examples when the request table is empty.
+        if ("off".equals(mode)) {
+            log.info("Bootstrap seeding is disabled.");
+            return;
+        }
+
+        Map<String, Department> departments = seedDepartments();
+
+        if (resetBootstrapData) {
+            resetWorkflowData();
+        }
+
+        Map<String, User> users = "minimal".equals(mode) ? seedMinimalUsers() : seedDemoUsers();
+
+        if ("minimal".equals(mode)) {
+            deactivateUsersOutside();
+            log.info("Minimal bootstrap completed for company testing.");
+            return;
+        }
+
         if (procurementRequestRepository.count() == 0) {
             seedRequests(departments, users);
+            log.info("Demo workflow data seeded.");
+        } else {
+            log.info("Requests already exist; skipping demo workflow data seeding.");
         }
     }
 
+    private String normalizeBootstrapMode(String rawMode) {
+        String mode = rawMode == null ? "demo" : rawMode.trim().toLowerCase();
+        return switch (mode) {
+            case "demo", "minimal", "off" -> mode;
+            default -> {
+                log.warn("Unknown bootstrap mode '{}'. Falling back to 'minimal'.", rawMode);
+                yield "minimal";
+            }
+        };
+    }
+
+    private void resetWorkflowData() {
+        log.warn("Reset bootstrap flag is enabled. Clearing workflow demo/test data before seeding.");
+
+        notificationRepository.deleteAll();
+        requestAttachmentRepository.deleteAll();
+        requestCommentRepository.deleteAll();
+        requestApprovalRepository.deleteAll();
+        procurementRequestRepository.deleteAll();
+    }
+
     private Map<String, Department> seedDepartments() {
-        // These are intentionally realistic names so dashboards and reports look believable in demos.
         Department legalServices = findOrCreateDepartment(
                 "Legal Services",
                 "LEGAL_SERVICES",
@@ -87,10 +152,9 @@ public class DemoDataInitializer implements CommandLineRunner {
         );
     }
 
-    private Map<String, User> seedUsers() {
-        // We create one user per core role plus two requesters to make workflow demos easier.
+    private Map<String, User> seedDemoUsers() {
         User systemAdmin = findOrCreateUser(
-                "Shamiso", "Moyo", "systemadmin@ranaka.org", "+263771000001", Role.SYSTEM_ADMIN
+                "Stiles", "Mvura", "stilesmvura@gmail.com", "+263771000001", Role.SYSTEM_ADMIN
         );
         User admin = findOrCreateUser(
                 "Tariro", "Ncube", "admin@ranaka.org", "+263771000002", Role.ADMIN
@@ -118,8 +182,57 @@ public class DemoDataInitializer implements CommandLineRunner {
         );
     }
 
+    private Map<String, User> seedMinimalUsers() {
+        User systemAdmin = findOrCreateUser(
+                "Stiles", "Mvura", "stilesmvura@gmail.com", "+263771000001", Role.SYSTEM_ADMIN
+        );
+        User admin = findOrCreateUser(
+                "Admin", "Reviewer", "admin@ranaka.org", "+263771000002", Role.ADMIN
+        );
+        User gm = findOrCreateUser(
+                "General", "Manager", "gm@ranaka.org", "+263771000003", Role.GM
+        );
+        User ceo = findOrCreateUser(
+                "Chief", "Executive", "ceo@ranaka.org", "+263771000004", Role.CEO
+        );
+        User requesterOne = findOrCreateUser(
+                "Requester", "One", "requester1@ranaka.org", "+263771000005", Role.REQUESTER
+        );
+        User requesterTwo = findOrCreateUser(
+                "Requester", "Two", "requester2@ranaka.org", "+263771000006", Role.REQUESTER
+        );
+        User requesterThree = findOrCreateUser(
+                "Requester", "Three", "requester3@ranaka.org", "+263771000007", Role.REQUESTER
+        );
+
+        return Map.of(
+                "systemAdmin", systemAdmin,
+                "admin", admin,
+                "gm", gm,
+                "ceo", ceo,
+                "requesterOne", requesterOne,
+                "requesterTwo", requesterTwo,
+                "requesterThree", requesterThree
+        );
+    }
+
+    private void deactivateUsersOutside() {
+        Set<Long> keptIds = MINIMAL_ACTIVE_EMAILS.stream()
+                .map(userRepository::findByEmail)
+                .flatMap(optionalUser -> optionalUser.stream())
+                .map(User::getId)
+                .collect(Collectors.toSet());
+
+        for (User user : userRepository.findAll()) {
+            boolean shouldRemainActive = keptIds.contains(user.getId());
+            if (user.isActive() != shouldRemainActive) {
+                user.setActive(shouldRemainActive);
+                userRepository.save(user);
+            }
+        }
+    }
+
     private Department findOrCreateDepartment(String name, String code, String description) {
-        // This keeps startup idempotent: re-running the app does not duplicate departments.
         return departmentRepository.findByNameAndDeletedAtIsNull(name)
                 .orElseGet(() -> departmentRepository.save(Department.builder()
                         .name(name)
@@ -130,21 +243,26 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private User findOrCreateUser(String firstName, String lastName, String email, String phoneNumber, Role role) {
-        // Every seeded user gets a known demo password so the team can log in quickly in DEV.
         return userRepository.findByEmail(email)
+                .map(existing -> {
+                    existing.setFirstName(firstName);
+                    existing.setLastName(lastName);
+                    existing.setPhoneNumber(phoneNumber);
+                    existing.setRole(role);
+                    existing.setActive(true);
+                    return userRepository.save(existing);
+                })
                 .orElseGet(() -> userRepository.save(buildUser(
                         firstName,
                         lastName,
                         email,
                         phoneNumber,
                         role,
-                        passwordEncoder.encode("Password@123")
+                        passwordEncoder.encode(defaultPassword)
                 )));
     }
 
     private void seedRequests(Map<String, Department> departments, Map<String, User> users) {
-        // Each seeded request demonstrates a different workflow state:
-        // draft, pending queues, returned, rejected, authorized, and overdue.
         ProcurementRequest draftRequest = saveRequest(ProcurementRequest.builder()
                 .title("Desktop printers for legal aid intake office")
                 .description("Procurement of two network printers to support faster client intake processing.")
@@ -328,7 +446,6 @@ public class DemoDataInitializer implements CommandLineRunner {
             String comment,
             LocalDateTime actionDate
     ) {
-        // Approval history is what powers the detail view and timeline-style audit storytelling.
         requestApprovalRepository.save(RequestApproval.builder()
                 .request(request)
                 .approver(approver)
@@ -340,7 +457,6 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private void addComment(ProcurementRequest request, User commenter, String comment, boolean isInternal) {
-        // Internal comments are meant for approver-side collaboration, not requester-facing notes.
         requestCommentRepository.save(RequestComment.builder()
                 .request(request)
                 .commenter(commenter)
@@ -357,7 +473,6 @@ public class DemoDataInitializer implements CommandLineRunner {
             String contentType,
             long fileSize
     ) {
-        // We store one realistic attachment so file-list endpoints have something useful to return.
         requestAttachmentRepository.save(RequestAttachment.builder()
                 .request(request)
                 .uploadedBy(uploadedBy)

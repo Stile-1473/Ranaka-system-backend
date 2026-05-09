@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Ranaka Local" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="SPRING_BOOT_MAIN_CLASS" value="Ranaka.ranaka.RanakaApplication" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <module name="ranaka" />
+    <envs>
+      <env name="SERVER_PORT" value="5005" />
+      <env name="DB_HOST" value="localhost" />
+      <env name="DB_PORT" value="3306" />
+      <env name="DB_NAME" value="zero_trust" />
+      <env name="DB_USERNAME" value="ghost1473" />
+      <env name="DB_PASSWORD" value="ghost1473" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
