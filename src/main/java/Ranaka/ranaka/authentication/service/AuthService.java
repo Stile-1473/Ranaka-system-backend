@@ -12,6 +12,7 @@ public interface AuthService {
 
     AuthResponse register(RegisterRequest request);
     AuthResponse login(LoginRequest loginRequest);
+    AuthResponse refreshSession(String refreshToken);
     void changePassword(ChangePasswordRequest request);
     User getCurrentUser();
     User updateCurrentUser(UpdateCurrentUserRequest request);

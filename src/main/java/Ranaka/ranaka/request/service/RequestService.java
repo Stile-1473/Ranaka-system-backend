@@ -57,6 +57,8 @@ public interface RequestService {
 
     List<AttachmentDto> getRequestAttachments(Long requestId);
 
+    AttachmentDownloadDto getRequestAttachmentDownload(Long requestId, Long attachmentId);
+
     // Utility Methods
     List<RequestListResponseDto> getOverdueRequests();
 

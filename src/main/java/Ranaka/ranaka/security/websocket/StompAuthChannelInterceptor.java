@@ -43,7 +43,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         String username = jwtService.extractUsername(token);
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-        if (!jwtService.isTokenValid(token, userDetails.getUsername())) {
+        if (!jwtService.isAccessTokenValid(token, userDetails.getUsername())) {
             throw new IllegalArgumentException("Invalid WebSocket authentication token");
         }
 

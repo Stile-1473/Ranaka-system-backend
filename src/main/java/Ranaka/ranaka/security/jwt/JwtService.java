@@ -17,11 +17,18 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
+    private static final String TOKEN_TYPE_CLAIM = "tokenType";
+    private static final String ACCESS_TOKEN_TYPE = "access";
+    private static final String REFRESH_TOKEN_TYPE = "refresh";
+
     @Value("${jwt.secret}")
     private String jwtSecret;
 
     @Value("${jwt.expiration}")
     private long jwtExpiration;
+
+    @Value("${jwt.refresh-expiration:2592000000}")
+    private long refreshJwtExpiration;
 
     public String extractUsername(String token){
 
@@ -35,19 +42,19 @@ public class JwtService {
     }
 
     public String generateToken(String email){
-        // Example subject: requester1@ranaka.org
-        return Jwts.builder()
-                .subject(email)
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
-                .signWith(getSigningKey())
-                .compact();
+        return generateToken(email, ACCESS_TOKEN_TYPE, jwtExpiration);
     }
 
+    public String generateRefreshToken(String email) {
+        return generateToken(email, REFRESH_TOKEN_TYPE, refreshJwtExpiration);
+    }
 
-    public boolean isTokenValid(String token,String email){
-        String username = extractUsername(token);
-        return username.equals(email) && !isTokenExpired(token);
+    public boolean isAccessTokenValid(String token, String email){
+        return isTokenValid(token, email, ACCESS_TOKEN_TYPE);
+    }
+
+    public boolean isRefreshTokenValid(String token, String email) {
+        return isTokenValid(token, email, REFRESH_TOKEN_TYPE);
     }
     private boolean isTokenExpired(String token){
         Date expirationDate = extractClaim(token,Claims::getExpiration);
@@ -61,6 +68,25 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    private String generateToken(String email, String tokenType, long expiration) {
+        return Jwts.builder()
+                .subject(email)
+                .claim(TOKEN_TYPE_CLAIM, tokenType)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    private boolean isTokenValid(String token, String email, String expectedType) {
+        String username = extractUsername(token);
+        String tokenType = extractClaim(token, claims -> claims.get(TOKEN_TYPE_CLAIM, String.class));
+
+        return username.equals(email)
+                && expectedType.equalsIgnoreCase(tokenType)
+                && !isTokenExpired(token);
     }
 
     private SecretKey getSigningKey(){

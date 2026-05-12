@@ -1,6 +1,7 @@
 package Ranaka.ranaka.authentication.controller;
 
 import Ranaka.ranaka.authentication.dto.request.LoginRequest;
+import Ranaka.ranaka.authentication.dto.request.RefreshTokenRequest;
 import Ranaka.ranaka.authentication.dto.request.RegisterRequest;
 import Ranaka.ranaka.authentication.dto.request.UpdateCurrentUserRequest;
 import Ranaka.ranaka.authentication.dto.response.AuthResponse;
@@ -33,6 +34,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        AuthResponse response = authService.refreshSession(request.getRefreshToken());
         return ResponseEntity.ok(response);
     }
 

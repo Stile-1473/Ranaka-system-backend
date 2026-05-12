@@ -60,6 +60,7 @@ public class AuthServiceImpl implements AuthService {
 
         return new AuthResponse(
                 null,
+                null,
                 savedUser.getEmail(),
                 "User Registered",
                 savedUser.getRole()
@@ -93,15 +94,48 @@ public class AuthServiceImpl implements AuthService {
 
         // The token is what the frontend will send back on later API calls.
         String token = jwtService.generateToken(user.getEmail());
+        String refreshToken = jwtService.generateRefreshToken(user.getEmail());
         logAuditAction(user, AuditAction.LOGIN, "User logged in successfully");
         return new AuthResponse(
                 token,
+                refreshToken,
                 user.getEmail(),
                 "User logged in",
                 user.getRole()
 
         );
 
+    }
+
+    @Override
+    public AuthResponse refreshSession(String refreshToken) {
+        String userEmail;
+
+        try {
+            userEmail = jwtService.extractUsername(refreshToken);
+        } catch (Exception ex) {
+            throw new InvalidCredentialsException("Invalid refresh token");
+        }
+
+        User user = userRepository.findByEmail(userEmail).orElseThrow(
+                () -> new InvalidCredentialsException("Invalid refresh token")
+        );
+
+        if (!jwtService.isRefreshTokenValid(refreshToken, user.getEmail())) {
+            throw new InvalidCredentialsException("Invalid refresh token");
+        }
+
+        if (!user.isActive()) {
+            throw new AccountInactiveException("This account is not active");
+        }
+
+        return new AuthResponse(
+                jwtService.generateToken(user.getEmail()),
+                jwtService.generateRefreshToken(user.getEmail()),
+                user.getEmail(),
+                "Session refreshed",
+                user.getRole()
+        );
     }
 
     @Override

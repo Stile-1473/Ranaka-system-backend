@@ -4,6 +4,7 @@ import Ranaka.ranaka.request.dto.request.ApprovalActionRequest;
 import Ranaka.ranaka.request.dto.request.CreateRequestDto;
 import Ranaka.ranaka.request.dto.request.UpdateRequestDto;
 import Ranaka.ranaka.request.dto.response.*;
+import Ranaka.ranaka.request.service.AttachmentStorageService;
 import Ranaka.ranaka.request.service.RequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,12 +12,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -32,6 +40,7 @@ import java.util.List;
 public class RequestController {
 
     private final RequestService requestService;
+    private final AttachmentStorageService attachmentStorageService;
 
     /**
      * Creates a new procurement request in draft state.
@@ -333,11 +342,13 @@ public class RequestController {
             return ResponseEntity.badRequest().build();
         }
 
-        // In a real implementation, you'd validate file type, size, and store the file
-        // For now, we'll just record the attachment metadata
-        requestService.uploadAttachment(requestId, file.getOriginalFilename(),
-                                      "/uploads/" + file.getOriginalFilename(),
-                                      file.getContentType(), file.getSize());
+        try {
+            String storedFilePath = attachmentStorageService.store(file);
+            requestService.uploadAttachment(requestId, file.getOriginalFilename(),
+                    storedFilePath, file.getContentType(), file.getSize());
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Could not store this attachment.");
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
@@ -353,6 +364,36 @@ public class RequestController {
     public ResponseEntity<List<AttachmentDto>> getRequestAttachments(@PathVariable Long requestId) {
         List<AttachmentDto> response = requestService.getRequestAttachments(requestId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{requestId}/attachments/{attachmentId}/download")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Resource> downloadRequestAttachment(
+            @PathVariable Long requestId,
+            @PathVariable Long attachmentId) {
+        AttachmentDownloadDto attachment = requestService.getRequestAttachmentDownload(requestId, attachmentId);
+        Resource resource = attachmentStorageService.loadAsResource(attachment.getFilePath());
+
+        if (!resource.exists()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Attachment file not found.");
+        }
+
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (attachment.getContentType() != null && !attachment.getContentType().isBlank()) {
+            mediaType = MediaType.parseMediaType(attachment.getContentType());
+        }
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .contentLength(attachment.getFileSize() == null ? 0 : attachment.getFileSize())
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline()
+                                .filename(attachment.getFileName(), StandardCharsets.UTF_8)
+                                .build()
+                                .toString()
+                )
+                .body(resource);
     }
 
     /**

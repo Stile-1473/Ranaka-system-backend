@@ -662,6 +662,26 @@ public class RequestServiceImpl implements RequestService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public AttachmentDownloadDto getRequestAttachmentDownload(Long requestId, Long attachmentId) {
+        ProcurementRequest request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Request not found"));
+        validateRequestAccess(request);
+
+        RequestAttachment attachment = attachmentRepository.findByIdAndRequestId(attachmentId, requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Attachment not found"));
+
+        return AttachmentDownloadDto.builder()
+                .id(attachment.getId())
+                .requestId(requestId)
+                .fileName(attachment.getFileName())
+                .filePath(attachment.getFilePath())
+                .contentType(attachment.getContentType())
+                .fileSize(attachment.getFileSize())
+                .build();
+    }
+
     /**
      * Retrieves all overdue requests across the system.
      * Used for dashboards and escalation processes.
@@ -1261,6 +1281,9 @@ public class RequestServiceImpl implements RequestService {
      * Maps a RequestAttachment entity to an attachment DTO.
      */
     private AttachmentDto mapToAttachmentDto(RequestAttachment attachment) {
+        String downloadPath = "/api/v1/requests/" + attachment.getRequest().getId()
+                + "/attachments/" + attachment.getId() + "/download";
+
         return AttachmentDto.builder()
                 .id(attachment.getId())
                 .fileName(attachment.getFileName())
@@ -1268,6 +1291,8 @@ public class RequestServiceImpl implements RequestService {
                 .fileSize(attachment.getFileSize())
                 .uploadedAt(attachment.getUploadedAt())
                 .uploadedByName(attachment.getUploadedBy().getFirstName() + " " + attachment.getUploadedBy().getLastName())
+                .downloadUrl(downloadPath)
+                .fileUrl(downloadPath)
                 .build();
     }
 }

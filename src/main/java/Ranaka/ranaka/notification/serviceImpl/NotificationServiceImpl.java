@@ -7,6 +7,7 @@ import Ranaka.ranaka.notification.entity.Notification;
 import Ranaka.ranaka.notification.repository.NotificationRepository;
 import Ranaka.ranaka.notification.service.EmailService;
 import Ranaka.ranaka.notification.service.NotificationService;
+import Ranaka.ranaka.notification.service.PushNotificationDeliveryService;
 import Ranaka.ranaka.user.entity.User;
 import Ranaka.ranaka.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final EmailService emailService;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final PushNotificationDeliveryService pushNotificationDeliveryService;
 
     @Override
     public NotificationResponseDto createNotification(User recipient,
@@ -72,6 +74,8 @@ public class NotificationServiceImpl implements NotificationService {
         NotificationResponseDto response = mapToDto(savedNotification);
         // Step 3: push the event to live subscribers so the UI updates immediately.
         publishRealtimeUpdate(recipient, response);
+        // Step 4: send a real device push so the user can still see the update while the app is backgrounded.
+        pushNotificationDeliveryService.deliverNotification(recipient, response);
         return response;
     }
 
