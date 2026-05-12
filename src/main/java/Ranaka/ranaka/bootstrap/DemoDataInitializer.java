@@ -69,6 +69,9 @@ public class DemoDataInitializer implements CommandLineRunner {
     @Value("${app.bootstrap.default-password:Password@123}")
     private String defaultPassword;
 
+    @Value("${app.bootstrap.minimal.deactivate-outsiders:false}")
+    private boolean deactivateUsersOutsideMinimalSeed;
+
     @Override
     @Transactional
     public void run(String... args) {
@@ -88,7 +91,10 @@ public class DemoDataInitializer implements CommandLineRunner {
         Map<String, User> users = "minimal".equals(mode) ? seedMinimalUsers() : seedDemoUsers();
 
         if ("minimal".equals(mode)) {
-            deactivateUsersOutside();
+            if (deactivateUsersOutsideMinimalSeed) {
+                deactivateUsersOutside();
+                log.warn("Minimal bootstrap deactivated users outside the seeded allowlist.");
+            }
             log.info("Minimal bootstrap completed for company testing.");
             return;
         }
