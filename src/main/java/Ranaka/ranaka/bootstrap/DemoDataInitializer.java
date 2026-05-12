@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -237,7 +238,7 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private Department findOrCreateDepartment(String name, String code, String description) {
-        Department existingByCode = departmentRepository.findByCode(code).orElse(null);
+        Department existingByCode = findExistingDepartmentByCode(code);
         if (existingByCode != null) {
             existingByCode.setName(name);
             existingByCode.setDescription(description);
@@ -246,7 +247,7 @@ public class DemoDataInitializer implements CommandLineRunner {
             return departmentRepository.save(existingByCode);
         }
 
-        Department existingByName = departmentRepository.findByName(name).orElse(null);
+        Department existingByName = findExistingDepartmentByName(name);
         if (existingByName != null) {
             existingByName.setCode(code);
             existingByName.setDescription(description);
@@ -261,6 +262,30 @@ public class DemoDataInitializer implements CommandLineRunner {
                 .description(description)
                 .isActive(true)
                 .build());
+    }
+
+    private Department findExistingDepartmentByCode(String code) {
+        return departmentRepository.findByCode(code)
+                .or(() -> departmentRepository.findAll().stream()
+                        .filter(department -> sameBusinessValue(department.getCode(), code))
+                        .findFirst())
+                .orElse(null);
+    }
+
+    private Department findExistingDepartmentByName(String name) {
+        return departmentRepository.findByName(name)
+                .or(() -> departmentRepository.findAll().stream()
+                        .filter(department -> sameBusinessValue(department.getName(), name))
+                        .findFirst())
+                .orElse(null);
+    }
+
+    private boolean sameBusinessValue(String left, String right) {
+        return Objects.equals(normalizeBusinessValue(left), normalizeBusinessValue(right));
+    }
+
+    private String normalizeBusinessValue(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
     }
 
     private User findOrCreateUser(String firstName, String lastName, String email, String phoneNumber, Role role) {
