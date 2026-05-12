@@ -14,7 +14,11 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 
     Optional<Department> findByNameAndDeletedAtIsNull(String name);
 
+    Optional<Department> findByName(String name);
+
     Optional<Department> findByCodeAndDeletedAtIsNull(String code);
+
+    Optional<Department> findByCode(String code);
 
     List<Department> findByDeletedAtIsNullOrderByNameAsc();
 

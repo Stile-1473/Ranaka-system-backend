@@ -237,13 +237,30 @@ public class DemoDataInitializer implements CommandLineRunner {
     }
 
     private Department findOrCreateDepartment(String name, String code, String description) {
-        return departmentRepository.findByNameAndDeletedAtIsNull(name)
-                .orElseGet(() -> departmentRepository.save(Department.builder()
-                        .name(name)
-                        .code(code)
-                        .description(description)
-                        .isActive(true)
-                        .build()));
+        Department existingByCode = departmentRepository.findByCode(code).orElse(null);
+        if (existingByCode != null) {
+            existingByCode.setName(name);
+            existingByCode.setDescription(description);
+            existingByCode.setActive(true);
+            existingByCode.setDeletedAt(null);
+            return departmentRepository.save(existingByCode);
+        }
+
+        Department existingByName = departmentRepository.findByName(name).orElse(null);
+        if (existingByName != null) {
+            existingByName.setCode(code);
+            existingByName.setDescription(description);
+            existingByName.setActive(true);
+            existingByName.setDeletedAt(null);
+            return departmentRepository.save(existingByName);
+        }
+
+        return departmentRepository.save(Department.builder()
+                .name(name)
+                .code(code)
+                .description(description)
+                .isActive(true)
+                .build());
     }
 
     private User findOrCreateUser(String firstName, String lastName, String email, String phoneNumber, Role role) {
