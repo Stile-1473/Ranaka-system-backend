@@ -24,6 +24,10 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Native mobile clients can use a direct WebSocket endpoint without SockJS.
+        registry.addEndpoint("/ws-native")
+                .setAllowedOriginPatterns("*");
+
         // The frontend connects here first, then upgrades into a STOMP session.
         // SockJS gives us a fallback path if a browser or proxy cannot use native WebSocket.
         registry.addEndpoint("/ws")
