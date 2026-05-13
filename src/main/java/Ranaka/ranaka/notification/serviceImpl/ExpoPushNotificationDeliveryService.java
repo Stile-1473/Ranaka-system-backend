@@ -2,6 +2,7 @@ package Ranaka.ranaka.notification.serviceImpl;
 
 import Ranaka.ranaka.notification.dto.NotificationResponseDto;
 import Ranaka.ranaka.notification.entity.PushToken;
+import Ranaka.ranaka.notification.repository.NotificationRepository;
 import Ranaka.ranaka.notification.repository.PushTokenRepository;
 import Ranaka.ranaka.notification.service.PushNotificationDeliveryService;
 import Ranaka.ranaka.user.entity.User;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class ExpoPushNotificationDeliveryService implements PushNotificationDeliveryService {
 
     private final PushTokenRepository pushTokenRepository;
+    private final NotificationRepository notificationRepository;
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,11 +44,13 @@ public class ExpoPushNotificationDeliveryService implements PushNotificationDeli
     public void deliverNotification(User recipient, NotificationResponseDto notification) {
         List<PushToken> activeTokens = pushTokenRepository.findByUserIdAndActiveTrue(recipient.getId());
         if (activeTokens.isEmpty()) {
+            log.debug("Skipping Expo push for {} because no active device tokens are registered.", recipient.getEmail());
             return;
         }
 
         try {
-            List<Map<String, Object>> payload = buildPayload(activeTokens, notification);
+            long unreadCount = notificationRepository.countByRecipientIdAndIsReadFalse(recipient.getId());
+            List<Map<String, Object>> payload = buildPayload(activeTokens, notification, unreadCount);
             HttpRequest request = buildRequest(payload);
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -58,13 +62,16 @@ public class ExpoPushNotificationDeliveryService implements PushNotificationDeli
                 return;
             }
 
+            log.debug("Expo push delivered to {} device(s) for {}", activeTokens.size(), recipient.getEmail());
             deactivateInvalidTokens(activeTokens, response.body());
         } catch (Exception ex) {
             log.warn("Failed to deliver push notification to {}: {}", recipient.getEmail(), ex.getMessage());
         }
     }
 
-    private List<Map<String, Object>> buildPayload(List<PushToken> activeTokens, NotificationResponseDto notification) {
+    private List<Map<String, Object>> buildPayload(List<PushToken> activeTokens,
+                                                   NotificationResponseDto notification,
+                                                   long unreadCount) {
         List<Map<String, Object>> payload = new ArrayList<>();
 
         for (PushToken pushToken : activeTokens) {
@@ -81,6 +88,8 @@ public class ExpoPushNotificationDeliveryService implements PushNotificationDeli
             message.put("sound", "default");
             message.put("priority", "high");
             message.put("channelId", "ranaka-updates");
+            message.put("badge", unreadCount);
+            message.put("interruptionLevel", "active");
             message.put("data", data);
             payload.add(message);
         }
