@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -223,6 +225,11 @@ public class UserServiceImpl implements UserService {
     public User deactivateUser(Long userId) {
         log.info("Deactivating user with ID: {}", userId);
 
+        User currentUser = getAuthenticatedUser();
+        if (currentUser != null && currentUser.getId() != null && currentUser.getId().equals(userId)) {
+            throw new IllegalArgumentException("You cannot deactivate your own account.");
+        }
+
         User user = getUserById(userId);
         if (!user.isActive()) {
             throw new IllegalArgumentException("User is already inactive");
@@ -271,6 +278,20 @@ public class UserServiceImpl implements UserService {
 
 
     // ==================== PRIVATE HELPER METHODS ====================
+
+    private User getAuthenticatedUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+
+        String principal = String.valueOf(authentication.getName());
+        if (principal == null || principal.isBlank() || "anonymousUser".equalsIgnoreCase(principal)) {
+            return null;
+        }
+
+        return userRepository.findByEmail(principal.trim().toLowerCase()).orElse(null);
+    }
 
     private void logAuditAction(Long userId, String entityType, AuditAction action,
                                String description, String oldValue, String newValue) {

@@ -691,7 +691,11 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional(readOnly = true)
     public List<RequestListResponseDto> getOverdueRequests() {
-        List<ProcurementRequest> requests = requestRepository.findByIsOverdueTrue();
+        User currentUser = getCurrentUser();
+        List<ProcurementRequest> requests = requestRepository.findByIsOverdueTrue().stream()
+                .filter(request -> canViewOverdueRequest(currentUser, request))
+                .collect(Collectors.toList());
+
         return requests.stream()
                 .map(this::mapToListResponse)
                 .collect(Collectors.toList());
@@ -807,6 +811,20 @@ public class RequestServiceImpl implements RequestService {
 
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+    }
+
+    private boolean canViewOverdueRequest(User currentUser, ProcurementRequest request) {
+        if (currentUser == null || currentUser.getRole() == null) {
+            return false;
+        }
+
+        return switch (currentUser.getRole()) {
+            case SYSTEM_ADMIN -> true;
+            case ADMIN -> request.getCurrentStage() == WorkflowStage.ADMIN_RECOMMENDATION;
+            case GM -> request.getCurrentStage() == WorkflowStage.GM_APPROVAL;
+            case CEO -> request.getCurrentStage() == WorkflowStage.CEO_AUTHORIZATION;
+            default -> false;
+        };
     }
 
     /**

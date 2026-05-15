@@ -310,8 +310,7 @@ public class DemoDataInitializer implements CommandLineRunner {
             emailMatch.setFirstName(firstName);
             emailMatch.setLastName(lastName);
             emailMatch.setRole(role);
-            emailMatch.setActive(true);
-            emailMatch.setPassword(passwordEncoder.encode(defaultPassword));
+
             return userRepository.save(emailMatch);
         }
 
@@ -323,8 +322,7 @@ public class DemoDataInitializer implements CommandLineRunner {
             existing.setEmail(email);
             existing.setPhoneNumber(phoneNumber);
             existing.setRole(role);
-            existing.setActive(true);
-            existing.setPassword(passwordEncoder.encode(defaultPassword));
+
             return userRepository.save(existing);
         }
 

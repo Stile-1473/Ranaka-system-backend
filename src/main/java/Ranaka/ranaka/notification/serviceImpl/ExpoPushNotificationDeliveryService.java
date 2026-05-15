@@ -22,6 +22,7 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -79,8 +80,9 @@ public class ExpoPushNotificationDeliveryService implements PushNotificationDeli
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("notificationId", notification.getId());
             data.put("referenceId", notification.getReferenceId());
-            data.put("referenceType", notification.getReferenceType());
+            data.put("referenceType", normalizeReferenceType(notification.getReferenceType()));
             data.put("type", notification.getType().name());
+            data.put("deliverySource", "remote-push");
 
             message.put("to", pushToken.getToken());
             message.put("title", notification.getTitle());
@@ -141,5 +143,17 @@ public class ExpoPushNotificationDeliveryService implements PushNotificationDeli
         } catch (Exception ex) {
             log.warn("Could not inspect Expo push response: {}", ex.getMessage());
         }
+    }
+
+    private String normalizeReferenceType(String referenceType) {
+        if (!StringUtils.hasText(referenceType)) {
+            return referenceType;
+        }
+
+        return referenceType
+                .replaceAll("([a-z])([A-Z])", "$1_$2")
+                .replace('-', '_')
+                .replace(' ', '_')
+                .toUpperCase(Locale.ROOT);
     }
 }
