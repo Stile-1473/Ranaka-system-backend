@@ -206,10 +206,20 @@ spring.application.name=ranaka
 server.port=${SERVER_PORT}
 
 # Database
-spring.datasource.url=jdbc:mysql://${DB_HOST}:3306/${DB_NAME}
+# Preferred on Render: set DATABASE_URL to the Internal Database URL from Render.
+# The application converts Render's postgresql:// URL to jdbc:postgresql:// automatically.
+# DATABASE_URL=postgresql://ranaka_db_user:<password>@dpg-d8goc1rtqb8s73br5590-a:5432/ranaka_db
+
+# Alternative: set a JDBC URL directly.
+spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}}
 spring.datasource.username=${DB_USERNAME}
 spring.datasource.password=${DB_PASSWORD}
-spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
+
+# Example Render Postgres values:
+# DB_HOST=dpg-d8goc1rtqb8s73br5590-a
+# DB_PORT=5432
+# DB_NAME=ranaka_db
+# DB_USERNAME=ranaka_db_user
 
 # Hibernate (Auto-creates tables)
 spring.jpa.hibernate.ddl-auto=update

@@ -11,6 +11,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class RanakaApplication {
 
 	public static void main(String[] args) {
+		DatabaseUrlConfig.configureFromEnvironment();
 		SpringApplication.run(RanakaApplication.class, args);
 	}
 
