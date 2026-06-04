@@ -210,10 +210,12 @@ server.port=${SERVER_PORT}
 # The application converts Render's postgresql:// URL to jdbc:postgresql:// automatically.
 # DATABASE_URL=postgresql://ranaka_db_user:<password>@dpg-d8goc1rtqb8s73br5590-a:5432/ranaka_db
 
-# Alternative: set a JDBC URL directly.
+# Alternative: set a JDBC URL directly. If you paste Render's postgresql:// URL
+# into SPRING_DATASOURCE_URL, the app converts it before Spring starts.
 spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}}
 spring.datasource.username=${DB_USERNAME}
 spring.datasource.password=${DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
 
 # Example Render Postgres values:
 # DB_HOST=dpg-d8goc1rtqb8s73br5590-a
