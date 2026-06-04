@@ -47,4 +47,33 @@ class DatabaseUrlConfigTest {
 				.isEqualTo("jdbc:postgresql://explicit-host:5432/explicit_db");
 		assertThat(properties.getProperty("spring.datasource.username")).isNull();
 	}
+
+	@Test
+	void buildsDatasourcePropertiesFromRenderDatabaseFields() {
+		Properties properties = new Properties();
+
+		DatabaseUrlConfig.configureFromEnvironment(Map.of(
+				"DB_HOST", "dpg-d8goc1rtqb8s73br5590-a",
+				"DB_PORT", "5432",
+				"DB_NAME", "ranaka_db",
+				"DB_USERNAME", "ranaka_db_user",
+				"DB_PASSWORD", "secret"), properties);
+
+		assertThat(properties.getProperty("spring.datasource.url"))
+				.isEqualTo("jdbc:postgresql://dpg-d8goc1rtqb8s73br5590-a:5432/ranaka_db");
+		assertThat(properties.getProperty("spring.datasource.username")).isEqualTo("ranaka_db_user");
+		assertThat(properties.getProperty("spring.datasource.password")).isEqualTo("secret");
+	}
+
+	@Test
+	void usesDefaultPostgresPortForRenderDatabaseFields() {
+		Properties properties = new Properties();
+
+		DatabaseUrlConfig.configureFromEnvironment(Map.of(
+				"DB_HOST", "dpg-d8goc1rtqb8s73br5590-a",
+				"DB_NAME", "ranaka_db"), properties);
+
+		assertThat(properties.getProperty("spring.datasource.url"))
+				.isEqualTo("jdbc:postgresql://dpg-d8goc1rtqb8s73br5590-a:5432/ranaka_db");
+	}
 }

@@ -15,6 +15,7 @@ public final class DatabaseUrlConfig {
 	private static final String SPRING_DATASOURCE_URL_ENV = "SPRING_DATASOURCE_URL";
 	private static final String SPRING_DATASOURCE_USERNAME_ENV = "SPRING_DATASOURCE_USERNAME";
 	private static final String SPRING_DATASOURCE_PASSWORD_ENV = "SPRING_DATASOURCE_PASSWORD";
+	private static final String DEFAULT_POSTGRES_PORT = "5432";
 
 	private DatabaseUrlConfig() {
 	}
@@ -34,6 +35,12 @@ public final class DatabaseUrlConfig {
 				environment.get("POSTGRESQL_URL"), environment.get("JDBC_DATABASE_URL"));
 		if (hasText(databaseUrl)) {
 			configureDatasourceUrl(databaseUrl, environment, properties);
+			return;
+		}
+
+		DatabaseConnectionProperties renderConnectionProperties = fromRenderDatabaseEnvironment(environment);
+		if (renderConnectionProperties != null) {
+			applyDatasourceProperties(renderConnectionProperties, environment, properties);
 		}
 	}
 
@@ -78,7 +85,11 @@ public final class DatabaseUrlConfig {
 			return;
 		}
 
-		DatabaseConnectionProperties connectionProperties = fromDatabaseUrl(databaseUrl);
+		applyDatasourceProperties(fromDatabaseUrl(databaseUrl), environment, properties);
+	}
+
+	private static void applyDatasourceProperties(DatabaseConnectionProperties connectionProperties,
+			Map<String, String> environment, Properties properties) {
 		properties.setProperty(SPRING_DATASOURCE_URL, connectionProperties.jdbcUrl());
 
 		if (hasText(connectionProperties.username()) && !hasText(environment.get(SPRING_DATASOURCE_USERNAME_ENV))
@@ -90,6 +101,18 @@ public final class DatabaseUrlConfig {
 				&& !hasText(properties.getProperty(SPRING_DATASOURCE_PASSWORD))) {
 			properties.setProperty(SPRING_DATASOURCE_PASSWORD, connectionProperties.password());
 		}
+	}
+
+	private static DatabaseConnectionProperties fromRenderDatabaseEnvironment(Map<String, String> environment) {
+		String host = environment.get("DB_HOST");
+		String databaseName = environment.get("DB_NAME");
+		if (!hasText(host) || !hasText(databaseName)) {
+			return null;
+		}
+
+		String port = firstPresent(environment.get("DB_PORT"), DEFAULT_POSTGRES_PORT);
+		String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + databaseName;
+		return new DatabaseConnectionProperties(jdbcUrl, environment.get("DB_USERNAME"), environment.get("DB_PASSWORD"));
 	}
 
 	private static boolean isPostgresUrl(String databaseUrl) {
